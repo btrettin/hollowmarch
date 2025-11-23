@@ -1,8 +1,7 @@
-using Hollowmarch.Data;
 using Hollowmarch.Models;
+using Hollowmarch.Repositories;
 using Hollowmarch.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace Hollowmarch.Api.Controllers;
 
@@ -10,13 +9,18 @@ namespace Hollowmarch.Api.Controllers;
 [Route("api")]
 public class GameController : ControllerBase
 {
-    private readonly AppDbContext _db;
     private readonly GameEventService _events;
+    private readonly IWorldMessageRepository _worldMessages;
+    private readonly IPlayerSessionRepository _playerSessions;
 
-    public GameController(AppDbContext db, GameEventService events)
+    public GameController(
+        GameEventService events,
+        IWorldMessageRepository worldMessages,
+        IPlayerSessionRepository playerSessions)
     {
-        _db = db;
         _events = events;
+        _worldMessages = worldMessages;
+        _playerSessions = playerSessions;
     }
 
     // GET /api/world
@@ -43,8 +47,7 @@ public class GameController : ControllerBase
     public async Task<IActionResult> PostWorldMessage([FromBody] WorldMessage message)
     {
         message.CreatedAt = DateTime.UtcNow;
-        _db.WorldMessages.Add(message);
-        await _db.SaveChangesAsync();
+        await _worldMessages.AddAsync(message);
 
         await _events.BroadcastAsync(new GameEvent("world-message", new
         {
@@ -61,8 +64,7 @@ public class GameController : ControllerBase
     public async Task<IActionResult> CreateSession([FromBody] PlayerSession session)
     {
         session.ConnectedAt = DateTime.UtcNow;
-        _db.PlayerSessions.Add(session);
-        await _db.SaveChangesAsync();
+        await _playerSessions.AddAsync(session);
 
         await _events.BroadcastAsync(new GameEvent("player-joined", new
         {
@@ -78,14 +80,14 @@ public class GameController : ControllerBase
     [HttpPut("sessions/{id:guid}/disconnect")]
     public async Task<IActionResult> DisconnectSession(Guid id)
     {
-        var session = await _db.PlayerSessions.FirstOrDefaultAsync(s => s.Id == id);;
+        var session = await _playerSessions.GetByIdAsync(id);
         if (session is null)
         {
             return NotFound();
         }
 
         session.DisconnectedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
+        await _playerSessions.UpdateAsync(session);
 
         await _events.BroadcastAsync(new GameEvent("player-left", new
         {
