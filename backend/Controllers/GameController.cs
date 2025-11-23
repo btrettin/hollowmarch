@@ -34,7 +34,7 @@ public class GameController : ControllerBase
         {
             // onlinePlayers,
             serverTime = DateTime.UtcNow,
-            motd =  "Welcome to Hollowmarch number 2!"
+            motd =  "Welcome to Hollowmarch number 3!"
         });
     }
 
