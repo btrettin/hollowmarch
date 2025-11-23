@@ -23,12 +23,16 @@ function App() {
     <div className="app">
       <header className="app__header">
         <h1>Hollowmarch 3D Starter</h1>
-        <p>Move with WASD and explore a minimal Three.js world.</p>
+        <p>Click to walk the world and orbit the camera OSRS-style.</p>
       </header>
       <canvas ref={canvasRef} className="game-canvas" />
       <div className="controls">
-        <span>W/A/S/D</span>
-        <span>to move the player</span>
+        <span>Left click</span>
+        <span>to walk</span>
+        <span>Right click + drag</span>
+        <span>to orbit</span>
+        <span>Scroll</span>
+        <span>to zoom</span>
       </div>
     </div>
   );

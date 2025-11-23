@@ -6,9 +6,10 @@ export interface Updatable {
 
 export class Player implements Updatable {
   readonly mesh: Group;
-  private velocity = new Vector3();
   private heading = new Vector3(0, 0, -1);
+  private target: Vector3 | null = null;
   private readonly speed = 6;
+  private readonly arrivalThreshold = 0.1;
 
   constructor() {
     this.mesh = new Group();
@@ -78,32 +79,32 @@ export class Player implements Updatable {
     this.mesh.add(mouth);
   }
 
-  moveForward() {
-    this.velocity.z -= 1;
-  }
-
-  moveBackward() {
-    this.velocity.z += 1;
-  }
-
-  moveLeft() {
-    this.velocity.x -= 1;
-  }
-
-  moveRight() {
-    this.velocity.x += 1;
+  setDestination(position: Vector3) {
+    this.target = new Vector3(position.x, 0, position.z);
   }
 
   update(dt: number) {
-    if (this.velocity.lengthSq() === 0) return;
+    if (!this.target) return;
 
-    const direction = this.velocity.normalize();
+    const toTarget = new Vector3().subVectors(this.target, this.mesh.position);
+    toTarget.y = 0;
+    const distance = toTarget.length();
+
+    if (distance < this.arrivalThreshold) {
+      this.mesh.position.set(this.target.x, 0, this.target.z);
+      this.target = null;
+      return;
+    }
+
+    const direction = toTarget.normalize();
     this.heading.copy(direction);
 
-    const displacement = direction.multiplyScalar(this.speed * dt);
-    this.mesh.position.add(displacement);
+    const step = Math.min(this.speed * dt, distance);
+    this.mesh.position.addScaledVector(direction, step);
+    this.mesh.position.y = 0;
 
-    this.velocity.set(0, 0, 0);
+    const lookTarget = this.mesh.position.clone().add(new Vector3(direction.x, 0, direction.z));
+    this.mesh.lookAt(lookTarget);
   }
 
   get direction(): Vector3 {
