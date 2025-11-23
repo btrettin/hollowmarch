@@ -9,29 +9,35 @@ import {
   Mesh,
   MeshStandardMaterial,
   PerspectiveCamera,
+  Plane,
   PlaneGeometry,
+  Raycaster,
   Scene,
   SphereGeometry,
+  Vector2,
   Vector3,
   WebGLRenderer,
 } from 'three';
-import { Input } from './Input';
 import { Player, Updatable } from './Player';
 
 export class World {
   private scene: Scene;
   private camera: PerspectiveCamera;
   private renderer: WebGLRenderer;
-  private input: Input;
   private updatables: Updatable[] = [];
   private player: Player | null = null;
   private lastTime = 0;
   private animationFrame = 0;
   private cameraYaw = 0;
   private cameraPitch = 0.45;
-  private readonly cameraDistance = 12;
+  private cameraDistance = 12;
   private isDragging = false;
   private previousMouse = { x: 0, y: 0 };
+  private raycaster = new Raycaster();
+  private pointer = new Vector2();
+  private groundPlane = new Plane(new Vector3(0, 1, 0), 0);
+  private smoothedFocus = new Vector3();
+  private handleContextMenu = (event: Event) => event.preventDefault();
 
   constructor(private canvas: HTMLCanvasElement) {
     this.scene = new Scene();
@@ -50,11 +56,11 @@ export class World {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-    this.input = new Input();
-
     this.canvas.addEventListener('mousedown', this.handleMouseDown);
+    this.canvas.addEventListener('contextmenu', this.handleContextMenu);
     window.addEventListener('mousemove', this.handleMouseMove);
     window.addEventListener('mouseup', this.handleMouseUp);
+    window.addEventListener('wheel', this.handleWheel, { passive: false });
 
     this.addLighting();
     this.addGround();
@@ -66,6 +72,7 @@ export class World {
     this.player = player;
     this.updatables.push(player);
     this.scene.add(player.mesh);
+    this.smoothedFocus.copy(player.position);
   }
 
   start() {
@@ -77,9 +84,10 @@ export class World {
     cancelAnimationFrame(this.animationFrame);
     window.removeEventListener('resize', this.handleResize);
     this.canvas.removeEventListener('mousedown', this.handleMouseDown);
+    this.canvas.removeEventListener('contextmenu', this.handleContextMenu);
     window.removeEventListener('mousemove', this.handleMouseMove);
     window.removeEventListener('mouseup', this.handleMouseUp);
-    this.input.dispose();
+    window.removeEventListener('wheel', this.handleWheel);
     this.renderer.dispose();
   }
 
@@ -211,10 +219,6 @@ export class World {
     const dt = (timestamp - this.lastTime) / 1000;
     this.lastTime = timestamp;
 
-    if (this.player) {
-      this.applyInput(this.player);
-    }
-
     this.updatables.forEach((entity) => entity.update(dt));
 
     if (this.player) {
@@ -226,8 +230,16 @@ export class World {
   };
 
   private handleMouseDown = (event: MouseEvent) => {
-    this.isDragging = true;
-    this.previousMouse = { x: event.clientX, y: event.clientY };
+    if (event.button === 2) {
+      this.isDragging = true;
+      this.previousMouse = { x: event.clientX, y: event.clientY };
+      event.preventDefault();
+      return;
+    }
+
+    if (event.button === 0) {
+      this.setMovementTarget(event);
+    }
   };
 
   private handleMouseMove = (event: MouseEvent) => {
@@ -246,13 +258,27 @@ export class World {
     this.isDragging = false;
   };
 
-  private applyInput(player: Player) {
-    const movement = this.input.getMovementVector();
+  private handleWheel = (event: WheelEvent) => {
+    event.preventDefault();
+    const zoomChange = event.deltaY * 0.002;
+    this.cameraDistance = Math.min(Math.max(this.cameraDistance + zoomChange, 6), 22);
+  };
 
-    if (movement.z < 0) player.moveForward();
-    if (movement.z > 0) player.moveBackward();
-    if (movement.x < 0) player.moveLeft();
-    if (movement.x > 0) player.moveRight();
+  private setMovementTarget(event: MouseEvent) {
+    if (!this.player) return;
+
+    const rect = this.canvas.getBoundingClientRect();
+    this.pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    this.pointer.y = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+
+    this.raycaster.setFromCamera(this.pointer, this.camera);
+    const target = new Vector3();
+    const intersection = this.raycaster.ray.intersectPlane(this.groundPlane, target);
+
+    if (intersection) {
+      intersection.y = 0;
+      this.player.setDestination(intersection);
+    }
   }
 
   private updateCamera(player: Player) {
@@ -262,8 +288,9 @@ export class World {
       Math.cos(this.cameraYaw) * Math.cos(this.cameraPitch),
     ).multiplyScalar(this.cameraDistance);
 
-    const desiredPosition = player.position.clone().add(offset);
+    this.smoothedFocus.lerp(player.position, 0.15);
+    const desiredPosition = this.smoothedFocus.clone().add(offset);
     this.camera.position.lerp(desiredPosition, 0.1);
-    this.camera.lookAt(player.position);
+    this.camera.lookAt(this.smoothedFocus);
   }
 }
