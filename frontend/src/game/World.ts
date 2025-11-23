@@ -1,11 +1,13 @@
 import {
   Color,
   HemisphereLight,
+  DirectionalLight,
   Mesh,
   MeshStandardMaterial,
   PerspectiveCamera,
   PlaneGeometry,
   Scene,
+  SphereGeometry,
   Vector3,
   WebGLRenderer,
 } from 'three';
@@ -24,7 +26,7 @@ export class World {
 
   constructor(private canvas: HTMLCanvasElement) {
     this.scene = new Scene();
-    this.scene.background = new Color(0x0b1021);
+    this.scene.background = new Color(0x87ceeb);
 
     this.camera = new PerspectiveCamera(
       60,
@@ -35,6 +37,7 @@ export class World {
     this.camera.position.set(0, 6, 12);
 
     this.renderer = new WebGLRenderer({ canvas, antialias: true });
+    this.renderer.shadowMap.enabled = true;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
@@ -64,8 +67,24 @@ export class World {
   }
 
   private addLighting() {
-    const hemisphere = new HemisphereLight(0xffffff, 0x223344, 1.0);
+    const hemisphere = new HemisphereLight(0xddeeff, 0x6688aa, 0.7);
     this.scene.add(hemisphere);
+
+    const sun = new DirectionalLight(0xfff1c1, 1.2);
+    sun.castShadow = true;
+    sun.position.set(-12, 18, 10);
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 0.5;
+    sun.shadow.camera.far = 60;
+    this.scene.add(sun);
+
+    const sunSphere = new Mesh(
+      new SphereGeometry(1.5, 24, 24),
+      new MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffd27f, emissiveIntensity: 0.8 }),
+    );
+    sunSphere.position.copy(sun.position.clone().normalize().multiplyScalar(30));
+    sunSphere.position.y = 25;
+    this.scene.add(sunSphere);
   }
 
   private addGround() {
