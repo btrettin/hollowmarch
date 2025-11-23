@@ -27,13 +27,6 @@ public class GameController : ControllerBase
     [HttpGet("world")]
     public async Task<IActionResult> GetWorld()
     {
-        // var onlinePlayers = await _db.PlayerSessions.CountAsync(p => p.DisconnectedAt == null);
-
-        // var latestMessage = await _db.WorldMessages
-            // .OrderByDescending(m => m.CreatedAt)
-             // .Select(m => m.Content)
-        // .FirstOrDefaultAsync();
-
         return Ok(new
         {
             // onlinePlayers,

@@ -12,7 +12,7 @@ var configuration = builder.Configuration;
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         configuration.GetConnectionString("Database")
-        ?? "Host=localhost;Port=5432;Database=hollowmarch;Username=postgres;Password=postgres"));
+        ?? "Host=localhost;Port=5433;Database=hollowmarch;Username=postgres;Password=postgres"));
 
 // Repositories
 builder.Services.AddScoped<IWorldMessageRepository, WorldMessageRepository>();
