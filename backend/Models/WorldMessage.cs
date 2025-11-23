@@ -4,7 +4,13 @@ public class WorldMessage
 {
     public int Id { get; set; }
 
-    public string Content { get; set; } = string.Empty;
+    public Guid? PlayerId { get; set; }
+
+    public Player? Player { get; set; }
+
+    public string Message { get; set; } = string.Empty;
+
+    public string MessageType { get; set; } = "chat";
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
