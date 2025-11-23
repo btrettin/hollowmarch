@@ -4,9 +4,17 @@ public class PlayerSession
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    public string Username { get; set; } = string.Empty;
+    public Guid PlayerId { get; set; }
 
-    public DateTime ConnectedAt { get; set; } = DateTime.UtcNow;
+    public Player? Player { get; set; }
 
-    public DateTime? DisconnectedAt { get; set; }
+    public string IPAddress { get; set; } = string.Empty;
+
+    public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime? EndedAt { get; set; }
+
+    public DateTime? LastHeartbeat { get; set; }
+
+    public bool IsActive { get; set; } = true;
 }

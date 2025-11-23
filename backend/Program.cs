@@ -17,6 +17,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Repositories
 builder.Services.AddScoped<IWorldMessageRepository, WorldMessageRepository>();
 builder.Services.AddScoped<IPlayerSessionRepository, PlayerSessionRepository>();
+builder.Services.AddScoped<IPlayerRepository, PlayerRepository>();
+builder.Services.AddScoped<ICharacterRepository, CharacterRepository>();
+builder.Services.AddScoped<IInventoryRepository, InventoryRepository>();
+builder.Services.AddScoped<IItemRepository, ItemRepository>();
+builder.Services.AddScoped<IZoneRepository, ZoneRepository>();
 
 builder.Services.AddCors(options =>
 {
@@ -31,8 +36,14 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Game event hub
+// Game event hub and domain services
 builder.Services.AddSingleton<GameEventService>();
+builder.Services.AddScoped<PlayerService>();
+builder.Services.AddScoped<CharacterService>();
+builder.Services.AddScoped<InventoryService>();
+builder.Services.AddScoped<ItemService>();
+builder.Services.AddScoped<ZoneService>();
+builder.Services.AddScoped<PlayerSessionService>();
 
 // MVC / Controllers
 builder.Services.AddControllers();
@@ -59,7 +70,6 @@ app.UseRouting();
 app.UseCors("FrontendPolicy");
 
 app.MapControllers();
-
 
 // WebSocket endpoint stays mapped here
 app.Map("/ws/game", async (HttpContext context, GameEventService events) =>
