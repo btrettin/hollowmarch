@@ -1,6 +1,7 @@
 using System.Net.WebSockets;
 using System.Text.Json;
 using Hollowmarch.Data;
+using Hollowmarch.Repositories;
 using Hollowmarch.Services;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +13,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         configuration.GetConnectionString("Database")
         ?? "Host=localhost;Port=5432;Database=hollowmarch;Username=postgres;Password=postgres"));
+
+// Repositories
+builder.Services.AddScoped<IWorldMessageRepository, WorldMessageRepository>();
+builder.Services.AddScoped<IPlayerSessionRepository, PlayerSessionRepository>();
 
 builder.Services.AddCors(options =>
 {
@@ -33,6 +38,13 @@ builder.Services.AddSingleton<GameEventService>();
 builder.Services.AddControllers();
 
 var app = builder.Build();
+
+// Ensure database is created based on the current models
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.EnsureCreatedAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
