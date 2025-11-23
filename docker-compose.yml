@@ -1,0 +1,37 @@
+version: '3.9'
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hollowmarch
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+    depends_on:
+      - db
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Database: Host=db;Port=5432;Database=hollowmarch;Username=postgres;Password=postgres
+    ports:
+      - "5041:5041"
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:5041/api
+      VITE_WS_URL: ws://localhost:5041/ws/game
+    ports:
+      - "5173:80"
+
+volumes:
+  db_data:
