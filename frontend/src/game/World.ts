@@ -27,6 +27,11 @@ export class World {
   private player: Player | null = null;
   private lastTime = 0;
   private animationFrame = 0;
+  private cameraYaw = 0;
+  private cameraPitch = 0.45;
+  private readonly cameraDistance = 12;
+  private isDragging = false;
+  private previousMouse = { x: 0, y: 0 };
 
   constructor(private canvas: HTMLCanvasElement) {
     this.scene = new Scene();
@@ -46,6 +51,10 @@ export class World {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
     this.input = new Input();
+
+    this.canvas.addEventListener('mousedown', this.handleMouseDown);
+    window.addEventListener('mousemove', this.handleMouseMove);
+    window.addEventListener('mouseup', this.handleMouseUp);
 
     this.addLighting();
     this.addGround();
@@ -67,6 +76,9 @@ export class World {
   dispose() {
     cancelAnimationFrame(this.animationFrame);
     window.removeEventListener('resize', this.handleResize);
+    this.canvas.removeEventListener('mousedown', this.handleMouseDown);
+    window.removeEventListener('mousemove', this.handleMouseMove);
+    window.removeEventListener('mouseup', this.handleMouseUp);
     this.input.dispose();
     this.renderer.dispose();
   }
@@ -213,6 +225,27 @@ export class World {
     this.animationFrame = requestAnimationFrame(this.loop);
   };
 
+  private handleMouseDown = (event: MouseEvent) => {
+    this.isDragging = true;
+    this.previousMouse = { x: event.clientX, y: event.clientY };
+  };
+
+  private handleMouseMove = (event: MouseEvent) => {
+    if (!this.isDragging) return;
+
+    const deltaX = event.clientX - this.previousMouse.x;
+    const deltaY = event.clientY - this.previousMouse.y;
+    this.previousMouse = { x: event.clientX, y: event.clientY };
+
+    const rotationSpeed = 0.005;
+    this.cameraYaw -= deltaX * rotationSpeed;
+    this.cameraPitch = Math.min(Math.max(this.cameraPitch - deltaY * rotationSpeed, 0.1), 1.4);
+  };
+
+  private handleMouseUp = () => {
+    this.isDragging = false;
+  };
+
   private applyInput(player: Player) {
     const movement = this.input.getMovementVector();
 
@@ -223,9 +256,11 @@ export class World {
   }
 
   private updateCamera(player: Player) {
-    const followHeight = new Vector3(0, 6, 0);
-    const backward = player.direction.clone().normalize().multiplyScalar(-10);
-    const offset = followHeight.add(backward);
+    const offset = new Vector3(
+      Math.sin(this.cameraYaw) * Math.cos(this.cameraPitch),
+      Math.sin(this.cameraPitch),
+      Math.cos(this.cameraYaw) * Math.cos(this.cameraPitch),
+    ).multiplyScalar(this.cameraDistance);
 
     const desiredPosition = player.position.clone().add(offset);
     this.camera.position.lerp(desiredPosition, 0.1);
