@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5041/api';
-const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:5041/ws/game';
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
+const WS_URL = import.meta.env.VITE_WS_URL ?? 'ws://localhost:5000/ws/game';
 
 type WorldState = {
   onlinePlayers: number;

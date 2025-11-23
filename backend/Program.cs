@@ -1,102 +1,55 @@
 using System.Net.WebSockets;
 using System.Text.Json;
 using Hollowmarch.Data;
-using Hollowmarch.Models;
 using Hollowmarch.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
 
+// DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(configuration.GetConnectionString("Database") ??
-                     "Host=localhost;Port=5432;Database=hollowmarch;Username=postgres;Password=postgres"));
+    options.UseNpgsql(
+        configuration.GetConnectionString("Database")
+        ?? "Host=localhost;Port=5432;Database=hollowmarch;Username=postgres;Password=postgres"));
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy
+            // TODO: set this to your actual frontend URL
+            .WithOrigins("http://localhost:5173") // e.g. Vite default
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
+// Game event hub
 builder.Services.AddSingleton<GameEventService>();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// MVC / Controllers
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
     app.UseDeveloperExceptionPage();
-    app.UseSwagger();
-    app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
 app.UseWebSockets();
 
-app.MapGet("/api/world", async (AppDbContext db) =>
-{
-    var onlinePlayers = await db.PlayerSessions.CountAsync(p => p.DisconnectedAt == null);
-    var latestMessage = await db.WorldMessages
-        .OrderByDescending(m => m.CreatedAt)
-        .Select(m => m.Content)
-        .FirstOrDefaultAsync();
+app.UseRouting();
 
-    return Results.Ok(new
-    {
-        onlinePlayers,
-        serverTime = DateTime.UtcNow,
-        motd = latestMessage ?? "Welcome to Hollowmarch!"
-    });
-});
+app.UseCors("FrontendPolicy");
 
-app.MapPost("/api/world/messages", async (WorldMessage message, AppDbContext db, GameEventService events) =>
-{
-    message.CreatedAt = DateTime.UtcNow;
-    db.WorldMessages.Add(message);
-    await db.SaveChangesAsync();
+app.MapControllers();
 
-    await events.BroadcastAsync(new GameEvent("world-message", new
-    {
-        message.Id,
-        message.Content,
-        message.CreatedAt
-    }));
 
-    return Results.Created($"/api/world/messages/{message.Id}", message);
-});
-
-app.MapPost("/api/sessions", async (PlayerSession session, AppDbContext db, GameEventService events) =>
-{
-    session.ConnectedAt = DateTime.UtcNow;
-    db.PlayerSessions.Add(session);
-    await db.SaveChangesAsync();
-
-    await events.BroadcastAsync(new GameEvent("player-joined", new
-    {
-        session.Id,
-        session.Username,
-        session.ConnectedAt
-    }));
-
-    return Results.Created($"/api/sessions/{session.Id}", session);
-});
-
-app.MapPut("/api/sessions/{id:guid}/disconnect", async (Guid id, AppDbContext db, GameEventService events) =>
-{
-    var session = await db.PlayerSessions.FindAsync(id);
-    if (session is null)
-    {
-        return Results.NotFound();
-    }
-
-    session.DisconnectedAt = DateTime.UtcNow;
-    await db.SaveChangesAsync();
-
-    await events.BroadcastAsync(new GameEvent("player-left", new
-    {
-        session.Id,
-        session.Username,
-        session.DisconnectedAt
-    }));
-
-    return Results.NoContent();
-});
-
+// WebSocket endpoint stays mapped here
 app.Map("/ws/game", async (HttpContext context, GameEventService events) =>
 {
     if (!context.WebSockets.IsWebSocketRequest)
@@ -122,7 +75,7 @@ app.Map("/ws/game", async (HttpContext context, GameEventService events) =>
         }
 
         var received = JsonSerializer.Deserialize<Dictionary<string, object>>(buffer.AsSpan(0, result.Count));
-        await events.BroadcastAsync(new GameEvent("echo", received ?? new {}));
+        await events.BroadcastAsync(new GameEvent("echo", received ?? new Dictionary<string, object>()));
     }
     while (!result.CloseStatus.HasValue);
 
