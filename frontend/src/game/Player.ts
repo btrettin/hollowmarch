@@ -275,7 +275,7 @@ export class Player implements Updatable {
         }
 
         path.push(destination);
-        return path;
+        return this.smoothPath(start, path);
       }
 
       for (const offset of neighborOffsets) {
@@ -304,6 +304,31 @@ export class Player implements Updatable {
     }
 
     return [destination];
+  }
+
+  private smoothPath(start: Vector3, path: Vector3[]): Vector3[] {
+    if (path.length <= 2) return path;
+
+    const points = [start.clone(), ...path.map((p) => p.clone())];
+    const smoothed: Vector3[] = [];
+
+    let anchorIndex = 0;
+
+    while (anchorIndex < points.length - 1) {
+      let nextIndex = anchorIndex + 1;
+
+      for (let test = anchorIndex + 2; test < points.length; test++) {
+        if (!this.hasLineOfSight(points[anchorIndex], points[test])) {
+          break;
+        }
+        nextIndex = test;
+      }
+
+      smoothed.push(points[nextIndex]);
+      anchorIndex = nextIndex;
+    }
+
+    return smoothed;
   }
 
   private hasLineOfSight(start: Vector3, end: Vector3) {
