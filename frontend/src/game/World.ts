@@ -124,6 +124,18 @@ export class World {
     groundTexture.repeat.set(40, 40);
 
     const groundGeometry = new PlaneGeometry(200, 200, 100, 100);
+    groundGeometry.rotateX(-Math.PI / 2);
+
+    const position = groundGeometry.attributes.position;
+    for (let i = 0; i < position.count; i++) {
+      const x = position.getX(i);
+      const z = position.getZ(i);
+      const height = this.sampleTerrainHeight(x, z);
+      position.setY(i, height);
+    }
+    position.needsUpdate = true;
+    groundGeometry.computeVertexNormals();
+
     const groundMaterial = new MeshStandardMaterial({
       color: 0x2b6b33,
       map: groundTexture,
@@ -131,15 +143,7 @@ export class World {
       metalness: 0.05,
     });
 
-    const position = groundGeometry.attributes.position;
-    for (let i = 0; i < position.count; i++) {
-      const offset = (Math.random() - 0.5) * 0.15;
-      position.setY(i, position.getY(i) + offset);
-    }
-    position.needsUpdate = true;
-
     const ground = new Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
   }
@@ -212,7 +216,8 @@ export class World {
 
     treePositions.forEach(({ x, z, scale = 1 }) => {
       const tree = this.createTree(trunkMaterial, leafMaterial, scale);
-      tree.position.set(x, 0, z);
+      const height = this.sampleTerrainHeight(x, z);
+      tree.position.set(x, height, z);
       this.registerCollider(new Vector3(x, 0, z), 2.6 * scale);
       this.scene.add(tree);
     });
@@ -267,7 +272,8 @@ export class World {
 
     rockPositions.forEach(({ x, z, scale = 1 }) => {
       const rock = new Mesh(rockGeometry.clone(), rockMaterial);
-      rock.position.set(x, 0.8, z);
+      const height = this.sampleTerrainHeight(x, z);
+      rock.position.set(x, height + 0.8, z);
       rock.scale.setScalar(scale);
       rock.rotation.set(Math.random() * 0.5, Math.random() * Math.PI * 2, Math.random() * 0.5);
       rock.castShadow = true;
@@ -294,18 +300,25 @@ export class World {
       const midPoint = start.clone().add(end).multiplyScalar(0.5);
       const geometry = new PlaneGeometry(length, width, Math.max(2, Math.floor(length / 5)), 2);
       geometry.rotateX(-Math.PI / 2);
+      const yaw = Math.atan2(delta.x, delta.y);
 
       const position = geometry.attributes.position;
       for (let i = 0; i < position.count; i++) {
         const edgeFactor = Math.abs(position.getZ(i)) / (width / 2);
         const wobble = (Math.random() - 0.5) * 0.2 + (edgeFactor > 0.8 ? (Math.random() - 0.5) * 0.4 : 0);
-        position.setY(i, position.getY(i) + wobble);
+        const localX = position.getX(i);
+        const localZ = position.getZ(i);
+        const worldX = midPoint.x + localX * Math.cos(yaw) - localZ * Math.sin(yaw);
+        const worldZ = midPoint.z + localX * Math.sin(yaw) + localZ * Math.cos(yaw);
+        const baseHeight = this.sampleTerrainHeight(worldX, worldZ);
+
+        position.setY(i, baseHeight + wobble + 0.03);
       }
       position.needsUpdate = true;
+      geometry.computeVertexNormals();
 
       const path = new Mesh(geometry, pathMaterial);
       path.position.copy(midPoint);
-      path.position.y = 0.05;
       path.rotation.y = Math.atan2(delta.x, delta.y);
       path.receiveShadow = true;
       this.scene.add(path);
@@ -314,7 +327,7 @@ export class World {
     const plazaGeometry = new CylinderGeometry(0.1, 0.1, 0.1, 6);
     const plaza = new Mesh(plazaGeometry, pathMaterial);
     plaza.scale.set(10, 0.2, 10);
-    plaza.position.set(0, 0.07, 0);
+    plaza.position.set(0, this.sampleTerrainHeight(0, 0) + 0.07, 0);
     plaza.receiveShadow = true;
     this.scene.add(plaza);
   }
@@ -371,17 +384,17 @@ export class World {
     const props = new Group();
 
     const well = this.createStoneWell();
-    well.position.set(5, 0, 5);
+    well.position.set(5, this.sampleTerrainHeight(5, 5), 5);
     this.registerCollider(new Vector3(5, 0, 5), 2.6);
     props.add(well);
 
     const camp = this.createCampfire();
-    camp.position.set(-12, 0, 18);
+    camp.position.set(-12, this.sampleTerrainHeight(-12, 18), 18);
     this.registerCollider(new Vector3(-12, 0, 18), 1.9);
     props.add(camp);
 
     const crates = this.createCrateStack();
-    crates.position.set(14, 0, -6);
+    crates.position.set(14, this.sampleTerrainHeight(14, -6), -6);
     this.registerCollider(new Vector3(14, 0, -6), 2.2);
     props.add(crates);
 
@@ -483,6 +496,49 @@ export class World {
     stack.add(flag);
 
     return stack;
+  }
+
+  private sampleTerrainHeight(x: number, z: number): number {
+    const largeUndulation = (this.valueNoise(x, z, 0.015) - 0.5) * 4.0;
+    const mediumHills = (this.valueNoise(x, z, 0.045) - 0.5) * 2.0;
+    const fineDetail = (this.valueNoise(x + 200, z - 120, 0.12) - 0.5) * 1.0;
+
+    const distance = Math.sqrt(x * x + z * z);
+    const softness = 0.3 + 0.7 * Math.min(1, distance / 80);
+
+    return (largeUndulation + mediumHills + fineDetail) * softness;
+  }
+
+  private valueNoise(x: number, z: number, frequency: number): number {
+    const sampleX = x * frequency;
+    const sampleZ = z * frequency;
+
+    const x0 = Math.floor(sampleX);
+    const z0 = Math.floor(sampleZ);
+    const x1 = x0 + 1;
+    const z1 = z0 + 1;
+
+    const tx = this.fade(sampleX - x0);
+    const tz = this.fade(sampleZ - z0);
+
+    const v00 = this.hash(x0, z0);
+    const v10 = this.hash(x1, z0);
+    const v01 = this.hash(x0, z1);
+    const v11 = this.hash(x1, z1);
+
+    const lerpX0 = v00 + (v10 - v00) * tx;
+    const lerpX1 = v01 + (v11 - v01) * tx;
+
+    return lerpX0 + (lerpX1 - lerpX0) * tz;
+  }
+
+  private fade(t: number): number {
+    return t * t * (3 - 2 * t);
+  }
+
+  private hash(x: number, z: number): number {
+    const n = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
+    return n - Math.floor(n);
   }
 
   private handleResize = () => {
