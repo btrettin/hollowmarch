@@ -75,8 +75,10 @@ export class World {
   addPlayer(player: Player) {
     this.player = player;
     player.setColliders(this.colliders);
+    player.setHeightSampler((x, z) => this.sampleTerrainHeight(x, z));
     this.updatables.push(player);
     this.scene.add(player.mesh);
+    player.mesh.position.y = this.sampleTerrainHeight(player.mesh.position.x, player.mesh.position.z);
     this.smoothedFocus.copy(player.position);
   }
 
@@ -216,8 +218,8 @@ export class World {
 
     treePositions.forEach(({ x, z, scale = 1 }) => {
       const tree = this.createTree(trunkMaterial, leafMaterial, scale);
-      const height = this.sampleTerrainHeight(x, z);
-      tree.position.set(x, height, z);
+      tree.position.set(x, 0, z);
+      this.alignToTerrain(tree);
       this.registerCollider(new Vector3(x, 0, z), 2.6 * scale);
       this.scene.add(tree);
     });
@@ -272,8 +274,8 @@ export class World {
 
     rockPositions.forEach(({ x, z, scale = 1 }) => {
       const rock = new Mesh(rockGeometry.clone(), rockMaterial);
-      const height = this.sampleTerrainHeight(x, z);
-      rock.position.set(x, height + 0.8, z);
+      rock.position.set(x, 0, z);
+      this.alignToTerrain(rock, 0.8);
       rock.scale.setScalar(scale);
       rock.rotation.set(Math.random() * 0.5, Math.random() * Math.PI * 2, Math.random() * 0.5);
       rock.castShadow = true;
@@ -327,7 +329,7 @@ export class World {
     const plazaGeometry = new CylinderGeometry(0.1, 0.1, 0.1, 6);
     const plaza = new Mesh(plazaGeometry, pathMaterial);
     plaza.scale.set(10, 0.2, 10);
-    plaza.position.set(0, this.sampleTerrainHeight(0, 0) + 0.07, 0);
+    this.alignToTerrain(plaza, 0.07);
     plaza.receiveShadow = true;
     this.scene.add(plaza);
   }
@@ -384,17 +386,20 @@ export class World {
     const props = new Group();
 
     const well = this.createStoneWell();
-    well.position.set(5, this.sampleTerrainHeight(5, 5), 5);
+    well.position.set(5, 0, 5);
+    this.alignToTerrain(well);
     this.registerCollider(new Vector3(5, 0, 5), 2.6);
     props.add(well);
 
     const camp = this.createCampfire();
-    camp.position.set(-12, this.sampleTerrainHeight(-12, 18), 18);
+    camp.position.set(-12, 0, 18);
+    this.alignToTerrain(camp);
     this.registerCollider(new Vector3(-12, 0, 18), 1.9);
     props.add(camp);
 
     const crates = this.createCrateStack();
-    crates.position.set(14, this.sampleTerrainHeight(14, -6), -6);
+    crates.position.set(14, 0, -6);
+    this.alignToTerrain(crates);
     this.registerCollider(new Vector3(14, 0, -6), 2.2);
     props.add(crates);
 
@@ -496,6 +501,11 @@ export class World {
     stack.add(flag);
 
     return stack;
+  }
+
+  private alignToTerrain(object: Mesh | Group, offset = 0) {
+    const position = object.position;
+    position.y = this.sampleTerrainHeight(position.x, position.z) + offset;
   }
 
   private sampleTerrainHeight(x: number, z: number): number {
