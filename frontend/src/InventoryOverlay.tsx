@@ -1,4 +1,6 @@
-import { Box, Chip, Divider, Grid, Paper, Stack, Typography } from '@mui/material';
+import { useState } from 'react';
+import { Backpack, Close } from '@mui/icons-material';
+import { Box, Chip, Divider, Grid, IconButton, Paper, Stack, Typography } from '@mui/material';
 
 type EquipmentItem = {
   name: string;
@@ -84,6 +86,29 @@ const BackpackSlot = ({ item }: { item: InventoryItem }) => (
 );
 
 const InventoryOverlay = () => {
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <IconButton
+        aria-label="Open inventory"
+        onClick={() => setOpen(true)}
+        size="large"
+        sx={{
+          backgroundColor: 'rgba(15,23,42,0.85)',
+          color: '#e5e7eb',
+          border: '1px solid rgba(255,255,255,0.12)',
+          boxShadow: '0 12px 32px rgba(0,0,0,0.4)',
+          '&:hover': {
+            backgroundColor: 'rgba(79,70,229,0.2)',
+          },
+        }}
+      >
+        <Backpack />
+      </IconButton>
+    );
+  }
+
   return (
     <Paper
       elevation={8}
@@ -107,7 +132,12 @@ const InventoryOverlay = () => {
               Vanguard of Hollowmarch
             </Typography>
           </div>
-          <Chip label="Equipped" color="secondary" variant="outlined" />
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Chip label="Equipped" color="secondary" variant="outlined" />
+            <IconButton aria-label="Close inventory" size="small" onClick={() => setOpen(false)}>
+              <Close fontSize="small" />
+            </IconButton>
+          </Stack>
         </Box>
 
         <Divider textAlign="left">Equipment</Divider>
