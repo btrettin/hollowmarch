@@ -18,6 +18,7 @@ export class Player implements Updatable {
   private readonly arrivalThreshold = 0.1;
   private readonly radius = 0.7;
   private colliders: Collider[] = [];
+  private heightSampler: (x: number, z: number) => number = () => 0;
 
   constructor() {
     this.mesh = new Group();
@@ -99,14 +100,25 @@ export class Player implements Updatable {
     this.colliders = colliders;
   }
 
+  setHeightSampler(heightSampler: (x: number, z: number) => number) {
+    this.heightSampler = heightSampler;
+    this.mesh.position.y = this.heightSampler(this.mesh.position.x, this.mesh.position.z);
+  }
+
   update(dt: number) {
+    this.mesh.position.y = this.heightSampler(this.mesh.position.x, this.mesh.position.z);
+
     while (this.target) {
       const toTarget = new Vector3().subVectors(this.target, this.mesh.position);
       toTarget.y = 0;
       const distance = toTarget.length();
 
       if (distance < this.arrivalThreshold) {
-        this.mesh.position.set(this.target.x, 0, this.target.z);
+        this.mesh.position.set(
+          this.target.x,
+          this.heightSampler(this.target.x, this.target.z),
+          this.target.z,
+        );
         this.target = this.path.shift() ?? null;
         continue;
       }
@@ -123,7 +135,7 @@ export class Player implements Updatable {
       }
 
       this.mesh.position.addScaledVector(direction, safeStep);
-      this.mesh.position.y = 0;
+      this.mesh.position.y = this.heightSampler(this.mesh.position.x, this.mesh.position.z);
 
       const lookTarget = this.mesh.position.clone().add(new Vector3(direction.x, 0, direction.z));
       this.mesh.lookAt(lookTarget);
