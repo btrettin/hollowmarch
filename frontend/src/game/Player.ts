@@ -29,18 +29,29 @@ export class Player implements Updatable {
   private loadModel() {
     const loader = new OBJLoader();
     loader.load(
-      '/models/box-man.obj',
+      '/models/medieval-knight.obj',
       (object) => {
         const colors: Record<string, number> = {
-          Torso: 0x4e7ac7,
-          Head: 0xffd7ba,
-          LeftArm: 0x4e7ac7,
-          RightArm: 0x4e7ac7,
-          LeftLeg: 0x2b3a55,
-          RightLeg: 0x2b3a55,
+          Tunic: 0x3b5b92,
+          Belt: 0xcfa15b,
+          Head: 0xf2d2a2,
+          Helmet: 0x6b778d,
+          Visor: 0x4a536b,
+          LeftArm: 0x6b778d,
+          RightArm: 0x6b778d,
+          LeftGlove: 0x4a536b,
+          RightGlove: 0x4a536b,
+          LeftLeg: 0x384663,
+          RightLeg: 0x384663,
+          Boots: 0x1f2533,
+          Cape: 0x8f1d1d,
+          Shield: 0x79664f,
+          Sword: 0x8a7b5e,
+          Blade: 0xd9d9d9,
+          Pommel: 0xcfa15b,
         };
 
-        object.scale.setScalar(0.7);
+        object.scale.setScalar(0.8);
 
         object.traverse((child) => {
           if ((child as Mesh).isMesh) {
