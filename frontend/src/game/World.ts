@@ -1,5 +1,6 @@
 import {
   Color,
+  CanvasTexture,
   HemisphereLight,
   DirectionalLight,
   CylinderGeometry,
@@ -12,6 +13,8 @@ import {
   Plane,
   PlaneGeometry,
   Raycaster,
+  RepeatWrapping,
+  DoubleSide,
   Scene,
   SphereGeometry,
   Vector2,
@@ -113,8 +116,26 @@ export class World {
   }
 
   private addGround() {
-    const groundGeometry = new PlaneGeometry(200, 200);
-    const groundMaterial = new MeshStandardMaterial({ color: 0x2e7d32 });
+    const groundTexture = this.createGrassTexture();
+    groundTexture.wrapS = RepeatWrapping;
+    groundTexture.wrapT = RepeatWrapping;
+    groundTexture.repeat.set(40, 40);
+
+    const groundGeometry = new PlaneGeometry(200, 200, 100, 100);
+    const groundMaterial = new MeshStandardMaterial({
+      color: 0x2b6b33,
+      map: groundTexture,
+      roughness: 0.95,
+      metalness: 0.05,
+    });
+
+    const position = groundGeometry.attributes.position;
+    for (let i = 0; i < position.count; i++) {
+      const offset = (Math.random() - 0.5) * 0.15;
+      position.setY(i, position.getY(i) + offset);
+    }
+    position.needsUpdate = true;
+
     const ground = new Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
@@ -122,8 +143,48 @@ export class World {
   }
 
   private populateEnvironment() {
+    this.addPaths();
     this.addTrees();
     this.addRocks();
+    this.addMedievalDetails();
+  }
+
+  private createGrassTexture() {
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new CanvasTexture(canvas);
+
+    const gradient = ctx.createLinearGradient(0, 0, size, size);
+    gradient.addColorStop(0, '#2f7d3a');
+    gradient.addColorStop(0.5, '#347b36');
+    gradient.addColorStop(1, '#2a6b31');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+
+    for (let i = 0; i < 800; i++) {
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      const alpha = 0.1 + Math.random() * 0.15;
+      ctx.fillStyle = `rgba(${60 + Math.random() * 20}, ${120 + Math.random() * 30}, ${60 + Math.random() * 20}, ${alpha})`;
+      ctx.fillRect(x, y, 2 + Math.random() * 3, 2 + Math.random() * 3);
+    }
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+    for (let i = 0; i < 60; i++) {
+      ctx.beginPath();
+      const startX = Math.random() * size;
+      const startY = Math.random() * size;
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(startX + (Math.random() - 0.5) * 30, startY - 20 - Math.random() * 20);
+      ctx.stroke();
+    }
+
+    const texture = new CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
   }
 
   private addTrees() {
@@ -206,6 +267,211 @@ export class World {
       rock.receiveShadow = true;
       this.scene.add(rock);
     });
+  }
+
+  private addPaths() {
+    const pathMaterial = this.createStonePathMaterial();
+
+    const segments: Array<{ start: Vector3; end: Vector3; width: number }> = [
+      { start: new Vector3(-40, 0, -30), end: new Vector3(0, 0, 0), width: 5 },
+      { start: new Vector3(0, 0, 0), end: new Vector3(0, 0, 45), width: 4 },
+      { start: new Vector3(0, 0, 0), end: new Vector3(35, 0, -12), width: 4.5 },
+      { start: new Vector3(-10, 0, 35), end: new Vector3(18, 0, 20), width: 3.5 },
+      { start: new Vector3(-28, 0, 15), end: new Vector3(-8, 0, -10), width: 3.8 },
+    ];
+
+    segments.forEach(({ start, end, width }) => {
+      const delta = new Vector2(end.x - start.x, end.z - start.z);
+      const length = delta.length();
+      const midPoint = start.clone().add(end).multiplyScalar(0.5);
+      const geometry = new PlaneGeometry(length, width, Math.max(2, Math.floor(length / 5)), 2);
+      geometry.rotateX(-Math.PI / 2);
+
+      const position = geometry.attributes.position;
+      for (let i = 0; i < position.count; i++) {
+        const edgeFactor = Math.abs(position.getZ(i)) / (width / 2);
+        const wobble = (Math.random() - 0.5) * 0.2 + (edgeFactor > 0.8 ? (Math.random() - 0.5) * 0.4 : 0);
+        position.setY(i, position.getY(i) + wobble);
+      }
+      position.needsUpdate = true;
+
+      const path = new Mesh(geometry, pathMaterial);
+      path.position.copy(midPoint);
+      path.position.y = 0.05;
+      path.rotation.y = Math.atan2(delta.x, delta.y);
+      path.receiveShadow = true;
+      this.scene.add(path);
+    });
+
+    const plazaGeometry = new CylinderGeometry(0.1, 0.1, 0.1, 6);
+    const plaza = new Mesh(plazaGeometry, pathMaterial);
+    plaza.scale.set(10, 0.2, 10);
+    plaza.position.set(0, 0.07, 0);
+    plaza.receiveShadow = true;
+    this.scene.add(plaza);
+  }
+
+  private createStonePathMaterial() {
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new MeshStandardMaterial({ color: 0x9d9487 });
+
+    ctx.fillStyle = '#9d9487';
+    ctx.fillRect(0, 0, size, size);
+
+    for (let i = 0; i < 140; i++) {
+      const stoneWidth = 18 + Math.random() * 28;
+      const stoneHeight = 12 + Math.random() * 20;
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate((Math.random() - 0.5) * 0.6);
+      ctx.fillStyle = `rgba(${140 + Math.random() * 30}, ${135 + Math.random() * 25}, ${120 + Math.random() * 20}, 0.95)`;
+      ctx.fillRect(-stoneWidth / 2, -stoneHeight / 2, stoneWidth, stoneHeight);
+      ctx.strokeStyle = 'rgba(60, 55, 45, 0.25)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-stoneWidth / 2, -stoneHeight / 2, stoneWidth, stoneHeight);
+      ctx.restore();
+    }
+
+    ctx.globalCompositeOperation = 'multiply';
+    const vignette = ctx.createRadialGradient(size / 2, size / 2, 20, size / 2, size / 2, size / 1.2);
+    vignette.addColorStop(0, 'rgba(255,255,255,0.25)');
+    vignette.addColorStop(1, 'rgba(90,80,70,0.5)');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, size, size);
+
+    const texture = new CanvasTexture(canvas);
+    texture.wrapS = RepeatWrapping;
+    texture.wrapT = RepeatWrapping;
+    texture.repeat.set(4, 4);
+    texture.needsUpdate = true;
+
+    return new MeshStandardMaterial({
+      map: texture,
+      color: 0xa19688,
+      roughness: 0.8,
+      metalness: 0.05,
+    });
+  }
+
+  private addMedievalDetails() {
+    const props = new Group();
+
+    const well = this.createStoneWell();
+    well.position.set(5, 0, 5);
+    props.add(well);
+
+    const camp = this.createCampfire();
+    camp.position.set(-12, 0, 18);
+    props.add(camp);
+
+    const crates = this.createCrateStack();
+    crates.position.set(14, 0, -6);
+    props.add(crates);
+
+    this.scene.add(props);
+  }
+
+  private createStoneWell() {
+    const baseMaterial = new MeshStandardMaterial({ color: 0x7f7b76, roughness: 0.9, metalness: 0.05 });
+    const roofMaterial = new MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.8 });
+
+    const wall = new Mesh(new CylinderGeometry(2.2, 2.4, 1.6, 12, 1, true), baseMaterial);
+    wall.position.y = 0.8;
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+
+    const cap = new Mesh(new CylinderGeometry(2.6, 2.6, 0.3, 12), baseMaterial);
+    cap.position.y = 1.7;
+    cap.castShadow = true;
+    cap.receiveShadow = true;
+
+    const roof = new Mesh(new ConeGeometry(2.8, 2.2, 4), roofMaterial);
+    roof.position.y = 3.2;
+    roof.castShadow = true;
+    roof.receiveShadow = true;
+
+    const well = new Group();
+    well.add(wall);
+    well.add(cap);
+    well.add(roof);
+    return well;
+  }
+
+  private createCampfire() {
+    const firewoodMaterial = new MeshStandardMaterial({ color: 0x6e4b2a, roughness: 0.85 });
+    const flameMaterial = new MeshStandardMaterial({ color: 0xffb347, emissive: 0xff6b1a, emissiveIntensity: 0.9 });
+
+    const logGeometry = new CylinderGeometry(0.25, 0.25, 2, 8);
+    const logs = new Group();
+    const rotations = [0, Math.PI / 3, (2 * Math.PI) / 3];
+    rotations.forEach((rot, i) => {
+      const log = new Mesh(logGeometry, firewoodMaterial);
+      log.position.y = 0.35;
+      log.rotation.z = 0.3;
+      log.rotation.y = rot;
+      log.castShadow = true;
+      log.receiveShadow = true;
+      logs.add(log);
+    });
+
+    const flame = new Mesh(new ConeGeometry(0.8, 1.4, 8), flameMaterial);
+    flame.position.y = 1;
+    flame.castShadow = true;
+
+    const stones = new Mesh(new CylinderGeometry(1.4, 1.4, 0.25, 10), new MeshStandardMaterial({ color: 0x7d7068 }));
+    stones.position.y = 0.15;
+    stones.receiveShadow = true;
+
+    const campfire = new Group();
+    campfire.add(stones);
+    campfire.add(logs);
+    campfire.add(flame);
+
+    return campfire;
+  }
+
+  private createCrateStack() {
+    const crateMaterial = new MeshStandardMaterial({ color: 0x8b6f4b, roughness: 0.8 });
+    const crateGeometry = new DodecahedronGeometry(1.2, 0);
+
+    const stack = new Group();
+    const positions = [
+      new Vector3(0, 0.9, 0),
+      new Vector3(1.5, 0.9, -0.6),
+      new Vector3(0.7, 2.1, -0.3),
+    ];
+
+    positions.forEach((pos) => {
+      const crate = new Mesh(crateGeometry.clone(), crateMaterial);
+      crate.position.copy(pos);
+      crate.castShadow = true;
+      crate.receiveShadow = true;
+      stack.add(crate);
+    });
+
+    const banner = new Mesh(new CylinderGeometry(0.06, 0.06, 3, 6), new MeshStandardMaterial({ color: 0x5c3b1a }));
+    banner.position.set(-1.2, 1.5, 0.4);
+    banner.castShadow = true;
+    banner.receiveShadow = true;
+
+    const flag = new Mesh(
+      new PlaneGeometry(1.2, 1.6),
+      new MeshStandardMaterial({ color: 0x9a1b1b, side: DoubleSide }),
+    );
+    flag.position.set(-1.2, 2.5, 0.4);
+    flag.rotation.y = Math.PI / 2.2;
+    flag.castShadow = true;
+
+    stack.add(banner);
+    stack.add(flag);
+
+    return stack;
   }
 
   private handleResize = () => {
