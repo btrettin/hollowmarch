@@ -1,4 +1,3 @@
-import { Box } from '@mui/material';
 import { useEffect, useRef } from 'react';
 import InventoryOverlay from './InventoryOverlay';
 import { Player } from './game/Player';
@@ -27,17 +26,12 @@ function App() {
         <h1>Hollowmarch 3D Starter</h1>
         <p>Click to walk the world and orbit the camera OSRS-style.</p>
       </header>
-      <Box
-        display="flex"
-        gap={2}
-        width="100%"
-        justifyContent="center"
-        flexWrap="wrap"
-        alignItems="flex-start"
-      >
+      <div className="world-wrapper">
         <canvas ref={canvasRef} className="game-canvas" />
-        <InventoryOverlay />
-      </Box>
+        <div className="inventory-overlay">
+          <InventoryOverlay />
+        </div>
+      </div>
       <div className="controls">
         <span>Left click</span>
         <span>to walk</span>
