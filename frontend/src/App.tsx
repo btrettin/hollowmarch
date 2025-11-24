@@ -22,10 +22,6 @@ function App() {
 
   return (
     <div className="app">
-      <header className="app__header">
-        <h1>Hollowmarch 3D Starter</h1>
-        <p>Click to walk the world and orbit the camera OSRS-style.</p>
-      </header>
       <div className="world-wrapper">
         <canvas ref={canvasRef} className="game-canvas" />
         <div className="inventory-overlay">
