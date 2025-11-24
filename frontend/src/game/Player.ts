@@ -1,5 +1,10 @@
 import { BoxGeometry, Group, Mesh, MeshStandardMaterial, SphereGeometry, Vector3 } from 'three';
 
+export interface Collider {
+  position: Vector3;
+  radius: number;
+}
+
 export interface Updatable {
   update(dt: number): void;
 }
@@ -10,6 +15,8 @@ export class Player implements Updatable {
   private target: Vector3 | null = null;
   private readonly speed = 6;
   private readonly arrivalThreshold = 0.1;
+  private readonly radius = 0.7;
+  private colliders: Collider[] = [];
 
   constructor() {
     this.mesh = new Group();
@@ -83,6 +90,10 @@ export class Player implements Updatable {
     this.target = new Vector3(position.x, 0, position.z);
   }
 
+  setColliders(colliders: Collider[]) {
+    this.colliders = colliders;
+  }
+
   update(dt: number) {
     if (!this.target) return;
 
@@ -100,7 +111,14 @@ export class Player implements Updatable {
     this.heading.copy(direction);
 
     const step = Math.min(this.speed * dt, distance);
-    this.mesh.position.addScaledVector(direction, step);
+    const safeStep = this.getSafeStep(direction, step);
+
+    if (safeStep <= 0.0001) {
+      this.target = null;
+      return;
+    }
+
+    this.mesh.position.addScaledVector(direction, safeStep);
     this.mesh.position.y = 0;
 
     const lookTarget = this.mesh.position.clone().add(new Vector3(direction.x, 0, direction.z));
@@ -113,5 +131,31 @@ export class Player implements Updatable {
 
   get position(): Vector3 {
     return this.mesh.position;
+  }
+
+  private getSafeStep(direction: Vector3, desiredStep: number): number {
+    let maxStep = desiredStep;
+
+    for (const collider of this.colliders) {
+      const toCollider = collider.position.clone().sub(this.mesh.position);
+      toCollider.y = 0;
+
+      const along = toCollider.dot(direction);
+      if (along <= 0) continue;
+
+      const lateralSq = Math.max(0, toCollider.lengthSq() - along * along);
+      const combinedRadius = this.radius + collider.radius;
+
+      if (lateralSq >= combinedRadius * combinedRadius) continue;
+
+      const offset = Math.sqrt(combinedRadius * combinedRadius - lateralSq);
+      const collisionDistance = along - offset;
+
+      if (collisionDistance < maxStep) {
+        maxStep = Math.max(0, collisionDistance - 0.02);
+      }
+    }
+
+    return maxStep;
   }
 }

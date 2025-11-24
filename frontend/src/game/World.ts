@@ -21,7 +21,7 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three';
-import { Player, Updatable } from './Player';
+import { Collider, Player, Updatable } from './Player';
 
 export class World {
   private scene: Scene;
@@ -41,6 +41,7 @@ export class World {
   private groundPlane = new Plane(new Vector3(0, 1, 0), 0);
   private smoothedFocus = new Vector3();
   private handleContextMenu = (event: Event) => event.preventDefault();
+  private colliders: Collider[] = [];
 
   constructor(private canvas: HTMLCanvasElement) {
     this.scene = new Scene();
@@ -73,6 +74,7 @@ export class World {
 
   addPlayer(player: Player) {
     this.player = player;
+    player.setColliders(this.colliders);
     this.updatables.push(player);
     this.scene.add(player.mesh);
     this.smoothedFocus.copy(player.position);
@@ -149,6 +151,10 @@ export class World {
     this.addMedievalDetails();
   }
 
+  private registerCollider(position: Vector3, radius: number) {
+    this.colliders.push({ position: position.clone(), radius });
+  }
+
   private createGrassTexture() {
     const size = 256;
     const canvas = document.createElement('canvas');
@@ -207,6 +213,7 @@ export class World {
     treePositions.forEach(({ x, z, scale = 1 }) => {
       const tree = this.createTree(trunkMaterial, leafMaterial, scale);
       tree.position.set(x, 0, z);
+      this.registerCollider(new Vector3(x, 0, z), 2.6 * scale);
       this.scene.add(tree);
     });
   }
@@ -265,6 +272,7 @@ export class World {
       rock.rotation.set(Math.random() * 0.5, Math.random() * Math.PI * 2, Math.random() * 0.5);
       rock.castShadow = true;
       rock.receiveShadow = true;
+      this.registerCollider(new Vector3(x, 0, z), 1.5 * scale);
       this.scene.add(rock);
     });
   }
@@ -364,14 +372,17 @@ export class World {
 
     const well = this.createStoneWell();
     well.position.set(5, 0, 5);
+    this.registerCollider(new Vector3(5, 0, 5), 2.6);
     props.add(well);
 
     const camp = this.createCampfire();
     camp.position.set(-12, 0, 18);
+    this.registerCollider(new Vector3(-12, 0, 18), 1.9);
     props.add(camp);
 
     const crates = this.createCrateStack();
     crates.position.set(14, 0, -6);
+    this.registerCollider(new Vector3(14, 0, -6), 2.2);
     props.add(crates);
 
     this.scene.add(props);
