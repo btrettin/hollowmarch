@@ -39,13 +39,39 @@ body {
   color: #cbd5e1;
 }
 
-.game-canvas {
+.world-wrapper {
+  position: relative;
   width: min(1100px, 100%);
+}
+
+.inventory-overlay {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+}
+
+.game-canvas {
+  width: 100%;
   height: 70vh;
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
   background: #04060a;
+}
+
+@media (max-width: 900px) {
+  .world-wrapper {
+    width: 100%;
+  }
+
+  .inventory-overlay {
+    position: static;
+    width: 100%;
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+  }
 }
 
 .controls {
