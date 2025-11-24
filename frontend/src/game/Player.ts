@@ -75,7 +75,7 @@ export class Player implements Updatable {
 
     const eyeMaterial = new MeshStandardMaterial({ color: 0x111111, emissive: 0x222222 });
     const leftEye = new Mesh(new SphereGeometry(0.06, 12, 12), eyeMaterial);
-    leftEye.position.set(-0.18, 2.75, -0.38);
+    leftEye.position.set(-0.18, 2.75, 0.38);
     this.mesh.add(leftEye);
 
     const rightEye = leftEye.clone();
@@ -83,7 +83,7 @@ export class Player implements Updatable {
     this.mesh.add(rightEye);
 
     const mouth = new Mesh(new BoxGeometry(0.35, 0.08, 0.05), new MeshStandardMaterial({ color: 0xcc6155 }));
-    mouth.position.set(0, 2.45, -0.37);
+    mouth.position.set(0, 2.45, 0.37);
     this.mesh.add(mouth);
   }
 
